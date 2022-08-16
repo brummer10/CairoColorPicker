@@ -58,7 +58,6 @@
 .PHONY : $(HEADER_DIR)*.h all debug nls gettext updatepot po clean install uninstall 
 
 all : check $(NAME)
-	@cd ../libxputty/Build && $(MAKE) shared
 	@mkdir -p ./$(BUILD_DIR)
 	@mv ./$(EXEC_NAME) ./$(BUILD_DIR)
 	@#if [ -f ./$(BUILD_DIR)/$(EXEC_NAME) ]; then echo $(BLUE)"build finish, now run make install"; \
@@ -105,16 +104,12 @@ clean :
 
 install :
 ifneq ("$(wildcard ./$(BUILD_DIR))","")
-	@cd ../libxputty/Build && $(MAKE) install
 	@mkdir -p $(DESTDIR)$(BIN_DIR)
 	@cp ./$(BUILD_DIR)/$(EXEC_NAME) $(DESTDIR)$(BIN_DIR)/$(EXEC_NAME)
-	@cp ../tools/dsp2cc $(DESTDIR)$(BIN_DIR)/dsp2cc
 	@mkdir -p $(DESTDIR)$(DESKAPPS_DIR)
 	@cp $(NAME).desktop $(DESTDIR)$(DESKAPPS_DIR)
 	@mkdir -p $(DESTDIR)$(PIXMAPS_DIR)
-	@cp ../$(NAME).svg $(DESTDIR)$(PIXMAPS_DIR)
-	@mkdir -p $(DESTDIR)$(SHARE_DIR)/XUiDesigner/wrapper
-	@cp -r ../Bundle/wrapper/* $(DESTDIR)$(SHARE_DIR)/XUiDesigner/wrapper
+	@cp ../$(EXEC_NAME).png $(DESTDIR)$(PIXMAPS_DIR)
 	@if [ ${LANGW} -gt 1 ]; then \
 		for lang in $(LANGS) ; \
 		do \
@@ -137,9 +132,8 @@ endif
 
 uninstall :
 	@rm -rf $(DESTDIR)$(BIN_DIR)/$(EXEC_NAME)
-	@rm -rf $(DESTDIR)$(BIN_DIR)/dsp2cc
 	@rm -rf $(DESTDIR)$(DESKAPPS_DIR)/$(NAME).desktop
-	@rm -rf $(DESTDIR)$(PIXMAPS_DIR)/$(NAME).svg
+	@rm -rf $(DESTDIR)$(PIXMAPS_DIR)/$(EXEC_NAME).png
 	@rm -rf $(DESTDIR)$(SHARE_DIR)/XUiDesigner
 	@rm -rf $(addprefix $(SHARE_DIR)/, $(MSGOBJS))
 	@echo ". ." $(BLUE)", done"$(NONE)

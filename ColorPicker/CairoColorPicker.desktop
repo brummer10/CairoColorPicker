@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=CairoColorPicker
+Comment=X11 Color Picker
+TryExec=cairocolorpicker
+Exec=cairocolorpicker %F
+Icon=cairocolorpicker
+Terminal=false
+Type=Application
+Categories=Graphics
+Name[de_DE]=CairoColorPicker

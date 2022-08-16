@@ -5,6 +5,8 @@ NONE = "\033[0m"
 
 SUBDIR := ColorPicker
 
+NOGOAL := install
+
 .PHONY: $(SUBDIR) libxputty  recurse
 
 $(MAKECMDGOALS) recurse: $(SUBDIR)
@@ -20,11 +22,13 @@ check-and-reinit-submodules :
 clean:
 
 libxputty: check-and-reinit-submodules
+ifeq (,$(filter $(NOGOAL),$(MAKECMDGOALS)))
 ifneq ($(MAKECMDGOALS),debug)
 	@exec $(MAKE) -j 1 -C $@ $(MAKECMDGOALS) CFLAGS='-O3 -D_FORTIFY_SOURCE=2 -Wall \
 	-fstack-protector -fno-ident -fno-asynchronous-unwind-tables -s -DNDEBUG'
 else
 	@exec $(MAKE) -j 1 -C $@ $(MAKECMDGOALS)
+endif
 endif
 
 $(SUBDIR): libxputty
