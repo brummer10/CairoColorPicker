@@ -4,6 +4,7 @@
 
 ## Features
 Pick a color from anywere on the Display (Hotkey ctrl), or from a Color weel, and show the rgba cairo values.
+CairoColorPicker dont need to be installed, it could run from everywere.
 
 ## Dependencys
 
@@ -15,5 +16,4 @@ Pick a color from anywere on the Display (Hotkey ctrl), or from a Color weel, an
 - git submodule init
 - git submodule update
 - make
-- make install # will install into ~/.lv2 ... AND/OR....
-- sudo make install # will install into /usr/lib/lv2
+- sudo make install # will install into /usr/bin
