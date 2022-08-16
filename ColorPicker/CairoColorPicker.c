@@ -123,6 +123,8 @@ static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
 
     double pointer_off =cwheel_x/5.5;
     color_chooser->radius = min(cwheel_x-pointer_off, cwheel_y-pointer_off) / 2;
+    color_chooser->center_x = (cwheelx+color_chooser->radius+pointer_off/2);
+    color_chooser->center_y = (cwheely+color_chooser->radius+pointer_off/2);
 
     double r = 1.0;
     double g = 0.0;
@@ -138,11 +140,9 @@ static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
             color_chooser->radius * sin(angle);
         double lengh_y = (cwheely+color_chooser->radius+pointer_off/2) +
             color_chooser->radius * cos(angle);
-        color_chooser->center_x = (cwheelx+color_chooser->radius+pointer_off/2);
-        color_chooser->center_y = (cwheely+color_chooser->radius+pointer_off/2);
         cairo_pattern_t* pat = cairo_pattern_create_linear ( color_chooser->center_x, color_chooser->center_y, lengh_x,lengh_y);
         cairo_pattern_add_color_stop_rgba (pat, 0, l,l,l,a);
-        cairo_pattern_add_color_stop_rgba (pat, 1, min(1.0,r+l),min(1.0,g+l),min(1.0,b+l),a);
+        cairo_pattern_add_color_stop_rgba (pat, 0.95, min(1.0,r+l),min(1.0,g+l),min(1.0,b+l),a);
         cairo_set_source (w->crb, pat);
         cairo_set_line_join(w->crb, CAIRO_LINE_JOIN_BEVEL);
         cairo_move_to(w->crb, color_chooser->center_x, color_chooser->center_y);
@@ -294,6 +294,10 @@ static bool is_in_circle(ColorChooser_t *color_chooser, int x, int y) {
     return (((a*a) + (b*b)) < (c * c));
 }
 
+static bool is_on_old_color(ColorChooser_t *color_chooser, int y) {
+    return (y > color_chooser->color_widget->height-60);
+}
+
 static void get_color(void *w_, void* button_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
@@ -317,7 +321,8 @@ static void get_color(void *w_, void* button_, void* UNUSED(user_data)) {
         set_focus_by_color(w, r, g, b);
         expose_widget(color_chooser->color_widget);
     } else if (w->flags & HAS_POINTER) {
-        if (xbutton->button == Button1 &&  is_in_circle(color_chooser, xbutton->x, xbutton->y)) {
+        if (xbutton->button == Button1 && (is_in_circle(color_chooser, xbutton->x, xbutton->y) ||
+                                                    is_on_old_color(color_chooser, xbutton->y))) {
             int x1, y1;
             Window child;
             XTranslateCoordinates( w->app->dpy, w->widget, DefaultRootWindow(
@@ -329,6 +334,9 @@ static void get_color(void *w_, void* button_, void* UNUSED(user_data)) {
             //fprintf(stderr, "%f %f %f %f\n", r, g, b, color_chooser->alpha);
             set_rgba_colors(color_chooser, r, g, b, color_chooser->alpha);
             expose_widget(color_chooser->color_widget);
+            if (is_on_old_color(color_chooser, xbutton->y)) {
+                set_focus_by_color(w, r, g, b);
+            }
         }
     }
 }
