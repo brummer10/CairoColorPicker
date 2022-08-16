@@ -256,7 +256,6 @@ static void set_rgba_colors(ColorChooser_t *color_chooser,
 static void save_last_color(ColorChooser_t *color_chooser) {
      color_chooser->rgba[4] = (CairoColor) {color_chooser->rgba[0].r, color_chooser->rgba[0].g,
                                         color_chooser->rgba[0].b ,color_chooser->rgba[0].a };
-   
 }
 
 static void a_callback(void *w_, void* UNUSED(user_data)) {
