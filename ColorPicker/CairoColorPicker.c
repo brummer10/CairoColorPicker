@@ -23,8 +23,8 @@
 
 /*---------------------------------------------------------------------
 -----------------------------------------------------------------------
-        convert a cairo color value to a true color value
-        respecting the alpa channel
+        convert a cairo color value (0 . . . 1) to a true color value
+        (0 . . . 255) respecting the alpa channel for a white background
 -----------------------------------------------------------------------
 ----------------------------------------------------------------------*/
 
@@ -34,7 +34,7 @@ static int rgba2RGB(double c, double a) {
 
 /*---------------------------------------------------------------------
 -----------------------------------------------------------------------
-                widget drawing
+                draw the luminescent slider
 -----------------------------------------------------------------------
 ----------------------------------------------------------------------*/
 
@@ -112,6 +112,12 @@ static void draw_lum_slider(void *w_, void* UNUSED(user_data)) {
     cairo_new_path (w->crb);
     cairo_pattern_destroy (pat);
 }
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                draw the Color Picker Widget
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
@@ -242,10 +248,10 @@ static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
 
 }
 
-
 /*---------------------------------------------------------------------
------------------------------------------------------------------------    
-                trap xerror (XGetImage may fail)
+-----------------------------------------------------------------------
+            trap xerror to avoid exit on error
+            XGetImage may fail, but we could ignore that
 -----------------------------------------------------------------------
 ----------------------------------------------------------------------*/
 
@@ -257,8 +263,8 @@ static int dummy_error_handler(Display *UNUSED(dpy), XErrorEvent *UNUSED(e)) {
 }
 
 /*---------------------------------------------------------------------
------------------------------------------------------------------------    
-                Color Chooser functions
+----------------------------------------------------------------------- 
+                Save selected color
 -----------------------------------------------------------------------
 ----------------------------------------------------------------------*/
 
@@ -266,6 +272,12 @@ static void set_rgba_color(ColorChooser_t *color_chooser,
                                     float r, float g, float b, float a) {
     color_chooser->rgba[0] = (CairoColor) {r, g, b ,a };
 }
+
+/*---------------------------------------------------------------------
+----------------------------------------------------------------------- 
+                Save last selected colors ( move forward the array)
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 static void set_rgba_colors(ColorChooser_t *color_chooser,
                                     float r, float g, float b, float a) {
@@ -278,31 +290,23 @@ static void set_rgba_colors(ColorChooser_t *color_chooser,
     color_chooser->rgba[0] = (CairoColor) {r, g, b ,a };
 }
 
+/*---------------------------------------------------------------------
+----------------------------------------------------------------------- 
+                Save last selected color to side so we could 
+                change current color without infect the old ones.
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void save_last_color(ColorChooser_t *color_chooser) {
      color_chooser->rgba[4] = (CairoColor) {color_chooser->rgba[0].r, color_chooser->rgba[0].g,
                                         color_chooser->rgba[0].b ,color_chooser->rgba[0].a };
 }
 
-static void a_callback(void *w_, void* UNUSED(user_data)) {
-    Widget_t *w = (Widget_t*)w_;
-    Widget_t *p = (Widget_t*)w->parent;
-    ColorChooser_t *color_chooser = (ColorChooser_t*)p->private_struct;
-    color_chooser->alpha = adj_get_value(w->adj);
-    color_chooser->rgba[0].a = color_chooser->alpha;
-    expose_widget(color_chooser->color_widget);
-}
-
-static void set_selected_color_on_map(void *w_, void* UNUSED(user_data)) {
-    Widget_t *w = (Widget_t*)w_;
-    XWindowAttributes attrs;
-    XGetWindowAttributes(w->app->dpy, (Window)w->widget, &attrs);
-    if (attrs.map_state != IsViewable) return;
-    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
-    CairoColor c = color_chooser->rgba[0];
-    adj_set_value(color_chooser->al->adj, color_chooser->alpha);
-    expose_widget(color_chooser->color_widget);
-    set_focus_by_color(color_chooser->color_widget,  c.r, c.g, c.b);
-}
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                Get the pixel under the pointer
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 static void get_pixel(Widget_t *w, int x, int y, XColor *color) {
     XImage *image;
@@ -312,6 +316,12 @@ static void get_pixel(Widget_t *w, int x, int y, XColor *color) {
     XQueryColor (w->app->dpy, DefaultColormap(w->app->dpy, DefaultScreen (w->app->dpy)), color);
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                check if pointer is in the Color Circle
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static bool is_in_circle(ColorChooser_t *color_chooser, int x, int y) {
     int a = (x - color_chooser->center_x);
     int b = (y - color_chooser->center_y);
@@ -319,74 +329,31 @@ static bool is_in_circle(ColorChooser_t *color_chooser, int x, int y) {
     return (((a*a) + (b*b)) < (c * c));
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                check if pointer is in on one of the old Colors
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static bool is_on_old_color(ColorChooser_t *color_chooser, int y) {
     return (y > color_chooser->color_widget->height-60);
 }
 
-static void get_color(void *w_, void* button_, void* UNUSED(user_data)) {
-    Widget_t *w = (Widget_t*)w_;
-    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
-    XButtonEvent *xbutton = (XButtonEvent*)button_;
-    XColor c;
-    if (w->app->hold_grab == color_chooser->color_widget) {
-        if (xbutton->window == color_chooser->color_widget->widget) {
-            w->app->hold_grab = NULL;
-            XUngrabPointer(w->app->dpy,CurrentTime);
-        }
-        int x1, y1;
-        Window child;
-        XTranslateCoordinates( w->app->dpy, xbutton->window, DefaultRootWindow(
-                            w->app->dpy), xbutton->x, xbutton->y, &x1, &y1, &child );
-        get_pixel(w, x1, y1, &c);
-        double r = (double)c.red/65535.0;
-        double g = (double)c.green/65535.0;
-        double b = (double)c.blue/65535.0;
-        //fprintf(stderr, "%f %f %f %f\n", r, g, b, color_chooser->alpha);
-        set_rgba_colors(color_chooser, r, g, b, color_chooser->alpha);
-        set_focus_by_color(w, r, g, b);
-        expose_widget(color_chooser->color_widget);
-    } else if (w->flags & HAS_POINTER) {
-        if (xbutton->button == Button1 && (is_in_circle(color_chooser, xbutton->x, xbutton->y) ||
-                                                    is_on_old_color(color_chooser, xbutton->y))) {
-            int x1, y1;
-            Window child;
-            XTranslateCoordinates( w->app->dpy, w->widget, DefaultRootWindow(
-                            w->app->dpy), xbutton->x, xbutton->y, &x1, &y1, &child );
-            get_pixel(w, x1, y1, &c);
-            double r = (double)c.red/65535.0;
-            double g = (double)c.green/65535.0;
-            double b = (double)c.blue/65535.0;
-            //fprintf(stderr, "%f %f %f %f\n", r, g, b, color_chooser->alpha);
-            set_rgba_colors(color_chooser, r, g, b, color_chooser->alpha);
-            expose_widget(color_chooser->color_widget);
-            if (is_on_old_color(color_chooser, xbutton->y)) {
-                set_focus_by_color(w, r, g, b);
-            }
-        }
-    }
-}
-
-static void lum_callback(void *w_, void* UNUSED(user_data)) {
-    Widget_t *w = (Widget_t*)w_;
-    Widget_t *p = (Widget_t*)w->parent;
-    XColor c;
-    ColorChooser_t *color_chooser = (ColorChooser_t*)p->private_struct;
-    color_chooser->lum = adj_get_value(w->adj);
-    int x1, y1;
-    Window child;
-    XTranslateCoordinates( w->app->dpy, color_chooser->color_widget->widget, DefaultRootWindow(
-            w->app->dpy), color_chooser->focus_x, color_chooser->focus_y, &x1, &y1, &child );
-    get_pixel(p, x1, y1, &c);
-    double r = (double)c.red/65535.0;
-    double g = (double)c.green/65535.0;
-    double b = (double)c.blue/65535.0;
-    set_rgba_color(color_chooser, r, g, b, color_chooser->alpha);
-    expose_widget(color_chooser->color_widget);
-}
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        dummy callback to avoid resulting callback from value change
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 static void null_callback(void* UNUSED(w_), void* UNUSED(user_data)) {
     
 }
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                set the focus in the Color Circle by a given color
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 void set_focus_by_color(Widget_t* wid, const double r, const double g, const double b) {
     XWindowAttributes attrs;
@@ -448,6 +415,119 @@ void set_focus_by_color(Widget_t* wid, const double r, const double g, const dou
     XFree (image);
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                callback for the Alpha channel slider
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
+static void a_callback(void *w_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    Widget_t *p = (Widget_t*)w->parent;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)p->private_struct;
+    color_chooser->alpha = adj_get_value(w->adj);
+    color_chooser->rgba[0].a = color_chooser->alpha;
+    expose_widget(color_chooser->color_widget);
+}
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                set the Color (Focus) when Window get mapped (shown)
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
+static void set_selected_color_on_map(void *w_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    XWindowAttributes attrs;
+    XGetWindowAttributes(w->app->dpy, (Window)w->widget, &attrs);
+    if (attrs.map_state != IsViewable) return;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
+    CairoColor c = color_chooser->rgba[0];
+    adj_set_value(color_chooser->al->adj, color_chooser->alpha);
+    expose_widget(color_chooser->color_widget);
+    set_focus_by_color(color_chooser->color_widget,  c.r, c.g, c.b);
+}
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                get the Color under the Pointer (when released)
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
+static void get_color(void *w_, void* button_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
+    XButtonEvent *xbutton = (XButtonEvent*)button_;
+    XColor c;
+    if (w->app->hold_grab == color_chooser->color_widget) {
+        if (xbutton->window == color_chooser->color_widget->widget) {
+            w->app->hold_grab = NULL;
+            XUngrabPointer(w->app->dpy,CurrentTime);
+        }
+        int x1, y1;
+        Window child;
+        XTranslateCoordinates( w->app->dpy, xbutton->window, DefaultRootWindow(
+                            w->app->dpy), xbutton->x, xbutton->y, &x1, &y1, &child );
+        get_pixel(w, x1, y1, &c);
+        double r = (double)c.red/65535.0;
+        double g = (double)c.green/65535.0;
+        double b = (double)c.blue/65535.0;
+        //fprintf(stderr, "%f %f %f %f\n", r, g, b, color_chooser->alpha);
+        set_rgba_colors(color_chooser, r, g, b, color_chooser->alpha);
+        set_focus_by_color(w, r, g, b);
+        expose_widget(color_chooser->color_widget);
+    } else if (w->flags & HAS_POINTER) {
+        if (xbutton->button == Button1 && (is_in_circle(color_chooser, xbutton->x, xbutton->y) ||
+                                                    is_on_old_color(color_chooser, xbutton->y))) {
+            int x1, y1;
+            Window child;
+            XTranslateCoordinates( w->app->dpy, w->widget, DefaultRootWindow(
+                            w->app->dpy), xbutton->x, xbutton->y, &x1, &y1, &child );
+            get_pixel(w, x1, y1, &c);
+            double r = (double)c.red/65535.0;
+            double g = (double)c.green/65535.0;
+            double b = (double)c.blue/65535.0;
+            //fprintf(stderr, "%f %f %f %f\n", r, g, b, color_chooser->alpha);
+            set_rgba_colors(color_chooser, r, g, b, color_chooser->alpha);
+            expose_widget(color_chooser->color_widget);
+            if (is_on_old_color(color_chooser, xbutton->y)) {
+                set_focus_by_color(w, r, g, b);
+            }
+        }
+    }
+}
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                Callback for the luminescent slider
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
+static void lum_callback(void *w_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    Widget_t *p = (Widget_t*)w->parent;
+    XColor c;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)p->private_struct;
+    color_chooser->lum = adj_get_value(w->adj);
+    int x1, y1;
+    Window child;
+    XTranslateCoordinates( w->app->dpy, color_chooser->color_widget->widget, DefaultRootWindow(
+            w->app->dpy), color_chooser->focus_x, color_chooser->focus_y, &x1, &y1, &child );
+    get_pixel(p, x1, y1, &c);
+    double r = (double)c.red/65535.0;
+    double g = (double)c.green/65535.0;
+    double b = (double)c.blue/65535.0;
+    set_rgba_color(color_chooser, r, g, b, color_chooser->alpha);
+    expose_widget(color_chooser->color_widget);
+}
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                Set the Focus to the current Pointer position 
+                when pressed and moved
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void set_focus_motion(void *w_, void *xmotion_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
@@ -470,7 +550,12 @@ static void set_focus_motion(void *w_, void *xmotion_, void* UNUSED(user_data)) 
     }
 }
 
-// set the curser to the mouse pointer
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        Set the Focus to the current Pointer position when pressed 
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void set_focus(void *w_, void* button_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
@@ -485,6 +570,12 @@ static void set_focus(void *w_, void* button_, void* UNUSED(user_data)) {
     save_last_color(color_chooser);
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        Reset the Grab for the Pointer when Hotkey release
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void reset_grab(void *w_, void *key_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
@@ -497,6 +588,13 @@ static void reset_grab(void *w_, void *key_, void* UNUSED(user_data)) {
         w->app->hold_grab = NULL;
     }
 }
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        Set the Focus to up/down/left/right keys and
+        check if a Hotkey is pressed, if so, grab the Pointer
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 static void set_focus_on_key(void *w_, void *key_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
@@ -548,17 +646,36 @@ static void set_focus_on_key(void *w_, void *key_, void* UNUSED(user_data)) {
     }
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        Callback for the output format selector,
+        just go and draw the widget, new value will be respected there
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void set_format(void *w_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
     expose_widget(color_chooser->color_widget);
 }
 
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+        Free the used memory, called when the window get destroyed
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
 static void color_chooser_mem_free(void *w_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
     free(color_chooser);
 }
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                Create Color Chooser widgets
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 Widget_t *create_color_chooser (Xputty *app) {
     ColorChooser_t *color_chooser = (ColorChooser_t*)malloc(sizeof(ColorChooser_t));
@@ -614,6 +731,12 @@ Widget_t *create_color_chooser (Xputty *app) {
 
     return color_chooser->color_widget;
 }
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
+                Show Color Chooser 
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
 
 void show_color_chooser(Widget_t *w) {
     widget_show_all(w);
