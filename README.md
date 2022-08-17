@@ -3,7 +3,8 @@
 ![CairoColorPicker](https://github.com/brummer10/CairoColorPicker/blob/main/CairoColorPicker.png?raw=true)
 
 ## Features
-Pick a color from anywere on the Display (Hotkey ctrl), or from a Color weel, and show the rgba cairo values.
+Pick a color from anywere on the Display (Hotkey ctrl) or from the Color circle 
+and show the values as Cairo rgba, True Color RGB or html notation.
 CairoColorPicker dont need to be installed, it could run from everywere.
 
 ## Dependencys
