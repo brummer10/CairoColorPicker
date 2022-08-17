@@ -21,6 +21,10 @@
 #include "CairoColorPicker.h"
 
 
+static int rgba2RGB(double c, double a) {
+    return (int)((((1.0 - a) * 1.0) + (a * c))*255);
+}
+
 /*---------------------------------------------------------------------
 -----------------------------------------------------------------------    
                 color handling
@@ -187,10 +191,24 @@ static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
     cairo_stroke(w->crb);
 
     cairo_set_font_size(w->crb, w->app->big_font);
-    cairo_move_to (w->crb, 30,  w->height-70);
+    cairo_move_to (w->crb, 100,  w->height-70);
     use_text_color_scheme(w, NORMAL_);
     char s[64];
-    snprintf(s, 63, "rgba  %.3f,  %.3f,  %.3f,  %.3f " , c[0].r, c[0].g, c[0].b, c[0].a);
+    int f = adj_get_value(color_chooser->format->adj);
+    switch (f) {
+        case 0:
+            snprintf(s, 63, "  %.3f,  %.3f,  %.3f,  %.3f " , c[0].r, c[0].g, c[0].b, c[0].a);
+        break;
+        case 1:
+            snprintf(s, 63, "  %i,  %i,  %i " , rgba2RGB(c[0].r, c[0].a), rgba2RGB(c[0].g, c[0].a), rgba2RGB(c[0].b, c[0].a));
+        break;
+        case 2:
+            snprintf(s, 63, "#%x", (rgba2RGB(c[0].r, c[0].a) << 16 | rgba2RGB(c[0].g, c[0].a) << 8 | rgba2RGB(c[0].b, c[0].a)));
+        break;
+        default:
+            snprintf(s, 63, "  %.3f,  %.3f,  %.3f,  %.3f " , c[0].r, c[0].g, c[0].b, c[0].a);
+        break;
+    }
     cairo_show_text(w->crb, s);
 
     cairo_rectangle(w->crb, 10, w->height-60,  (w->width/4)-10, 50);
@@ -523,6 +541,12 @@ static void set_focus_on_key(void *w_, void *key_, void* UNUSED(user_data)) {
     }
 }
 
+static void set_format(void *w_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
+    expose_widget(color_chooser->color_widget);
+}
+
 static void color_chooser_mem_free(void *w_, void* UNUSED(user_data)) {
     Widget_t *w = (Widget_t*)w_;
     ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
@@ -570,6 +594,16 @@ Widget_t *create_color_chooser (Xputty *app) {
     color_chooser->lu->private_struct = color_chooser;
     color_chooser->lu->func.expose_callback = draw_lum_slider;
     color_chooser->lu->func.value_changed_callback = lum_callback;
+
+    color_chooser->format = add_combobox(color_chooser->color_widget, _("Format"), 10, 350, 80,25);
+    combobox_add_entry(color_chooser->format,_("rgba"));
+    combobox_add_entry(color_chooser->format,_("RGB"));
+    combobox_add_entry(color_chooser->format,_("HTML"));
+    combobox_set_active_entry(color_chooser->format, 0);
+    color_chooser->format->scale.gravity = SOUTHEAST;
+    color_chooser->format->private_struct = color_chooser;
+    color_chooser->format->func.value_changed_callback = set_format;
+
 
     return color_chooser->color_widget;
 }

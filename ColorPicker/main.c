@@ -39,11 +39,11 @@ int main () {
     Widget_t * w = create_color_chooser (&main);
     show_color_chooser(w);
     main_run(&main);
-    XUngrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_L),
-                                    AnyModifier, DefaultRootWindow(w->app->dpy));
-    XUngrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_R),
-                                    AnyModifier, DefaultRootWindow(w->app->dpy));
-    w->app->key_snooper = NULL;
+    XUngrabKey(main.dpy, XKeysymToKeycode(main.dpy,XK_Control_L),
+                                    AnyModifier, DefaultRootWindow(main.dpy));
+    XUngrabKey(main.dpy, XKeysymToKeycode(main.dpy,XK_Control_R),
+                                    AnyModifier, DefaultRootWindow(main.dpy));
+    main.key_snooper = NULL;
     main_quit(&main);
     return 0;
 }
