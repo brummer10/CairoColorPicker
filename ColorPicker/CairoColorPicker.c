@@ -126,8 +126,8 @@ static void draw_color_widget(void *w_, void* UNUSED(user_data)) {
     cairo_set_source_rgba(w->crb,  0.13, 0.13, 0.13, 1.0);
     cairo_paint (w->crb);
 
-    int width = w->width-60;
-    int height = w->height-120;
+    int width = w->width-50;
+    int height = w->height-110;
 
     int grow = (width > height) ? height:width;
     int cwheel_x = grow-1;
@@ -703,6 +703,19 @@ Widget_t *create_color_chooser (Xputty *app) {
     color_chooser->color_widget->func.configure_notify_callback = set_selected_color_on_map;
     color_chooser->color_widget->func.visibiliy_change_callback = set_selected_color_on_map;
     color_chooser->color_widget->private_struct = color_chooser;
+
+    widget_set_icon_from_png(color_chooser->color_widget, LDVAR(colors_png));
+
+    XSizeHints* win_size_hints;
+    win_size_hints = XAllocSizeHints();
+    win_size_hints->flags =  PMinSize|PBaseSize|PWinGravity;
+    win_size_hints->min_width = 320;
+    win_size_hints->min_height = 400;
+    win_size_hints->base_width = 360;
+    win_size_hints->base_height = 440;
+    win_size_hints->win_gravity = CenterGravity;
+    XSetWMNormalHints(app->dpy, color_chooser->color_widget->widget, win_size_hints);
+    XFree(win_size_hints);
 
     color_chooser->al = add_vslider(color_chooser->color_widget, _("A"), 300, 40, 40, 300);
     set_adjustment(color_chooser->al->adj, 1.0, 1.0, 0.0, 1.0, 0.005, CL_CONTINUOS);
