@@ -648,6 +648,31 @@ static void set_focus_on_key(void *w_, void *key_, void* UNUSED(user_data)) {
 
 /*---------------------------------------------------------------------
 -----------------------------------------------------------------------
+        Callback to grab and un-grab the Keyboard
+-----------------------------------------------------------------------
+----------------------------------------------------------------------*/
+
+static void grab_keyboard(void *w_, void* UNUSED(user_data)) {
+    Widget_t *w = (Widget_t*)w_;
+    ColorChooser_t *color_chooser = (ColorChooser_t*)w->private_struct;
+    int v = (int)adj_get_value(w->adj);
+    if (v) {
+        XGrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_L),
+            AnyModifier, DefaultRootWindow(w->app->dpy), true, GrabModeAsync, GrabModeAsync);
+        XGrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_R),
+            AnyModifier, DefaultRootWindow(w->app->dpy), true, GrabModeAsync, GrabModeAsync);
+        w->app->key_snooper = color_chooser->color_widget;
+    } else {
+        XUngrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_L),
+                                        AnyModifier, DefaultRootWindow(w->app->dpy));
+        XUngrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_R),
+                                        AnyModifier, DefaultRootWindow(w->app->dpy));
+        w->app->key_snooper = NULL;
+    }
+}
+
+/*---------------------------------------------------------------------
+-----------------------------------------------------------------------
         Callback for the output format selector,
         just go and draw the widget, new value will be respected there
 -----------------------------------------------------------------------
@@ -741,6 +766,11 @@ Widget_t *create_color_chooser (Xputty *app) {
     color_chooser->format->private_struct = color_chooser;
     color_chooser->format->func.value_changed_callback = set_format;
 
+    color_chooser->grab_key = add_toggle_button(color_chooser->color_widget, _("Grab ctrl key"), 10, 10, 100,20);
+    color_chooser->grab_key->scale.gravity = CENTER;
+    color_chooser->grab_key->private_struct = color_chooser;
+    color_chooser->grab_key->func.value_changed_callback = grab_keyboard;
+    
 
     return color_chooser->color_widget;
 }
@@ -753,9 +783,4 @@ Widget_t *create_color_chooser (Xputty *app) {
 
 void show_color_chooser(Widget_t *w) {
     widget_show_all(w);
-    XGrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_L),
-        AnyModifier, DefaultRootWindow(w->app->dpy), true, GrabModeAsync, GrabModeAsync);
-    XGrabKey(w->app->dpy, XKeysymToKeycode(w->app->dpy,XK_Control_R),
-        AnyModifier, DefaultRootWindow(w->app->dpy), true, GrabModeAsync, GrabModeAsync);
-    w->app->key_snooper = w;
 }

@@ -70,6 +70,7 @@ typedef struct {
     Widget_t* al;
     Widget_t* lu;
     Widget_t* format;
+    Widget_t* grab_key;
     Widget_t* color_widget;
     Colors *selected_scheme;
     CairoColor rgba[5];
